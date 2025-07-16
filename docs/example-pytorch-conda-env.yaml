@@ -1,0 +1,22 @@
+e#change the name of this file from environment.txt to environment.yaml
+#type this in your shell: conda env create -f environment.yaml
+# if it does not work, add the absolute path to /environment.yaml or cd to the current folder
+# Save this as environment.yaml
+name: ml
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10  # PyTorch 2.2.x works well with Python 3.10
+  - pytorch=2.2.2
+  - torchvision=0.17.2
+  - torchaudio=2.2.2
+  - numpy         #numpy version < 2
+  - matplotlib
+  - scikit-learn
+
+
+#type: conda activate ml
+#type python 
+#type: import torch
