@@ -1,10 +1,54 @@
-# 2025 EAS summer ML working group log
+# 2025 EAS summer ML working group meeting notes
 
-# 2025-06-25 meeting
+# 2025-07-09
+## Agenda
+- very brief check in of where people are at
+- live demo of functional ML model (handwritten digits reader)
+- more work time on input data preprocessing
+
+
+## Status updates
+### Spencer
+- model architecture/problem still not 100% locked in
+-  thinks input data is properly split into test/validate/train chunks
+
+### Nick
+- lit review on appropriate models; foundational models for remote sensing; terramind IBM (written in geotorch, available on huggingface)
+- so take this foundational model and fine-tune it for his tasks
+
+### Shreya
+- using pytorch docs to better understand some fundamentals
+- using Haochang's provided tutorial as a template for her classification problem
+
+### Michelle
+- classic simple feedforward NN for her regression task
+- data loaded and successful(?) train/validate/test split
+
+## Haochang
+- Applied existing resnet model to his AEW developer/non-developer problem, doesn't get better results than his own custom model
+- resnet built into pytorch; can call it in one line; he'll demo that for us next time
+
+## Angela
+- Doing linear regression first before digging into building an ML model 
+  - Spencer note: this is a great idea!  Make sure you have a legit baseline before trying to construct a complicated ML model
+
+
+# 2025-07-02
+## Goal going into this week
+Have your conda environment with PyTorch setup properly: you can activate the environment, open a Jupyter session, and call `import pytorch` without error
+
+## Agenda
+1. (Spencer) primer on **classes** in Python and object-oriented programming (OOP), since the PyTorch workflow requires creating simple classes
+2. (Haochang) **Data preprocessing**: overview of the various “massaging” steps required before feeding your input data into an ML model, including load balancing, the train/validate/test split, and other things.
+3. Work time
+
+## Goal going from this week to next week
+Get your data preprocessing all handled, so that we can then turn to constructing the ML models architectures next time (or maybe the time after, if this data preprocessing step takes longer than anticipated)
+
+# 2025-06-25
 ## Agenda
 - Ultra-brief intros/1-sentence project summary from those who were there last week
 - Somewhat longer description of project ideas from all others
-- Recap of the conceptual basis underlying neural networks: neurons, activation functions, stochastic gradient descent, backpropagation
 - Python environment setup for this project via the env.yaml file we provide
 - Free work time for each of us
 
