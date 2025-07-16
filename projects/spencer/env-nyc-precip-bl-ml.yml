@@ -1,0 +1,16 @@
+name: 25su-ml-group
+channels:
+  - pytorch  # pytorch has its own dedicated channel
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - pytorch
+  - scikit-learn
+  - matplotlib 
+  - netcdf4
+  - numpy<2  # pytorch doesn't support numpy 2.0 yet!
+  - matplotlib
+  - jupyter
+  - xarray
+
