@@ -1,2 +1,4 @@
 *.code-workspace
 docs/log_25su-ml-group.md
+*.pth
+*.npz
