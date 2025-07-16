@@ -1,5 +1,24 @@
 # 2025 EAS summer ML working group meeting notes
 
+# 2025-07-16
+- Spencer has updated the Github repo posting all materials requested to date, including these meeting notes
+- Michelle shared her NN created w/ ChatGPT to identify the Hadley cell shared edge from the streamfunction
+  - It's available at `projects/michelle`
+  - It's a fully connected network w/ 2 hidden layers
+  - It works!
+  - She's in the process of going through line by line to ~fully understand the code that ChatGPT generated
+  - She had to do some tweaking/iterating, but mostly ChatGPT was able to create the whole thing easily
+  - (Spencer editorial: totally legit approach!  So long as you do the subsequent work, like Michelle is, of going through and understanding the code.)
+  - Potential next steps (after Michelle completes that process): predict the descending edges too; play w/ architecture; explore techniques to avoid overfitting
+- Misc. things Haochang brought up to be on the lookout for:
+  - [tensorboard](https://www.tensorflow.org/tensorboard): tools for visualizing ML models
+  - "gradient explosion" e.g. [here](https://machinelearningmastery.com/exploding-gradients-in-neural-networks/)
+  - overfitting
+    - Plot training loss and validation loss vs. epoch
+	- "weight decay" strategy: when defining your optimizer in pytorch via e.g. `optimizer = optim.Adam(model.parameters(), lr=1e-3)
+`, you can add as "decayrate"; a good starting point value is ~1/10 of the learning rate.
+
+
 # 2025-07-09
 ## Agenda
 - very brief check in of where people are at
