@@ -67,3 +67,4 @@ For Spencer's project and similar pedagogical implementations:
   - Short summary line ~<80 chars
   - Break with more descriptive summary if needed
   - Additional info in a footer if further needed
+  - Upon each git commit, push to remote

@@ -254,7 +254,9 @@ def evaluate_model(model: nn.Module, test_loader: DataLoader) -> None:
     plt.ylabel('Actual')
     plt.xlabel('Predicted')
     plt.tight_layout()
-    plt.show()
+    plt.savefig('confusion_matrix.png', dpi=150, bbox_inches='tight')
+    print("Confusion matrix saved as 'confusion_matrix.png'")
+    plt.close()
 
 
 def main():
