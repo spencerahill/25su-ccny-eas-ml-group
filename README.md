@@ -8,4 +8,5 @@ We are spending the summer trying to create simple ML models applied to a proble
 - `docs`: notes from weekly meetings; example files; informal guides on various ML-related topics
 - `projects`: materials from individual group member's projects
   - `nielsen-handwriting-nn`: implementation of the handwritten digit recognition model from [Nielsen](http://neuralnetworksanddeeplearning.com/)
+  - `spencer`: NYC temperature to season classification model (also serving as an experiment with [Claude Code](https://claude.ai/code) for ML development)
   
