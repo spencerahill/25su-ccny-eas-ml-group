@@ -52,6 +52,12 @@ For Spencer's project and similar pedagogical implementations:
 - Import only what you need
 - No unnecessary dependencies
 
+**Variable Naming:**
+- Always use descriptive variable names.
+
+**Logging:**
+- Use proper logging rather than just print statements, including saving logs to disk.
+
 ## Common Workflow
 
 1. Load and explore data in Jupyter notebooks
