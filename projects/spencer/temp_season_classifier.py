@@ -57,6 +57,9 @@ def setup_logging() -> None:
     logger.addHandler(console_handler)
     logger.addHandler(file_handler)
     
+    # Suppress noisy matplotlib debug messages
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+    
     logging.info(f"Logging initialized. Log file: {log_filename}")
 
 
