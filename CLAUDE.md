@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## IMPORTANT REMINDERS
+
+**ALWAYS follow these critical instructions:**
+
+- **GIT COMMIT after every nontrivial edit** - Never forget to commit and push changes
+- **Use conda environment `25su-ml-group`** for all code execution and package management
+- **Inspect every plot you generate** - Check for bugs and interpret scientifically
+- **Verify your work thoroughly** - Don't just check if files exist, examine their contents
+
 ## Repository Overview
 
 This is a summer 2025 CCNY EAS machine learning working group repository focused on learning PyTorch and applying ML models to earth science problems. The emphasis is on understanding both ML concepts and practical implementation.
@@ -10,6 +19,7 @@ This is a summer 2025 CCNY EAS machine learning working group repository focused
 
 The repository uses conda environments with PyTorch.  The only nonstandard thing is that pytorch needs numpy<2.
 
+- The project's conda environment name is 25su-ml-group. Always use that environment whenever running any code or installing or updating packages.
 
 ## Repository Structure
 
@@ -74,3 +84,11 @@ For Spencer's project and similar pedagogical implementations:
   - Break with more descriptive summary if needed
   - Additional info in a footer if further needed
   - Upon each git commit, push to remote
+
+## Code Verification Guidelines
+
+- Be careful and thorough in checking your work.  For example, if you are tasked with writing output to a file on disk, it is insufficient to merely check that the file now exists.  You need to then carefully inspect the file contents and verify that they match what was intended.
+
+## Visualization Guidelines
+
+- Whenever you generate a new plot, *always* inspect that plot, evaluating it for (1) potential signs of bugs or other problems, and then (2) to interpret it scientifically.
