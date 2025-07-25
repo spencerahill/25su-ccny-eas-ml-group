@@ -205,15 +205,50 @@ class TempSeasonNet(nn.Module):
         return self.network(x)
 
 
+def calculate_epoch_metrics(train_loss: float, val_loss: float, train_correct: int, 
+                           val_correct: int, train_total: int, val_total: int, 
+                           train_loader_len: int, val_loader_len: int) -> tuple[float, float, float, float]:
+    """Calculate epoch-level metrics from batch accumulations."""
+    epoch_train_loss = train_loss / train_loader_len
+    epoch_val_loss = val_loss / val_loader_len
+    train_acc = 100 * train_correct / train_total
+    val_acc = 100 * val_correct / val_total
+    
+    return epoch_train_loss, epoch_val_loss, train_acc, val_acc
+
+
+def store_metrics_in_history(history: dict, epoch_train_loss: float, epoch_val_loss: float, 
+                           train_acc: float, val_acc: float, epoch: int) -> None:
+    """Store epoch metrics in training history dictionary."""
+    history['train_loss'].append(epoch_train_loss)
+    history['val_loss'].append(epoch_val_loss)
+    history['train_acc'].append(train_acc)
+    history['val_acc'].append(val_acc)
+    history['epochs'].append(epoch + 1)
+
+
 def train_model(model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, 
-                epochs: int = 100, learning_rate: float = 0.01) -> nn.Module:
-    """Train the model using SGD optimizer."""
+                epochs: int = 100, learning_rate: float = 0.01) -> tuple[nn.Module, dict]:
+    """Train the model using SGD optimizer.
+    
+    Returns:
+        tuple: (trained_model, training_history)
+    """
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=learning_rate)
     
     logging.info(f"Training for {epochs} epochs with learning rate {learning_rate}")
     logging.debug(f"Using criterion: {criterion.__class__.__name__}")
     logging.debug(f"Using optimizer: {optimizer.__class__.__name__}")
+    
+    # Track training history for overfitting diagnostics
+    history = {
+        'train_loss': [],
+        'val_loss': [],
+        'train_acc': [],
+        'val_acc': [],
+        'epochs': []
+    }
     
     for epoch in range(epochs):
         # Training phase
@@ -250,16 +285,79 @@ def train_model(model: nn.Module, train_loader: DataLoader, val_loader: DataLoad
                 val_total += batch_labels.size(0)
                 val_correct += (predicted == batch_labels).sum().item()
         
+        # Calculate epoch metrics
+        epoch_train_loss, epoch_val_loss, train_acc, val_acc = calculate_epoch_metrics(
+            train_loss, val_loss, train_correct, val_correct, 
+            train_total, val_total, len(train_loader), len(val_loader)
+        )
+        
+        # Store metrics in history
+        store_metrics_in_history(history, epoch_train_loss, epoch_val_loss, train_acc, val_acc, epoch)
+        
         # Log progress every 10 epochs
         if (epoch + 1) % 10 == 0:
-            train_acc = 100 * train_correct / train_total
-            val_acc = 100 * val_correct / val_total
-            logging.info(f"Epoch {epoch+1:3d}: Train Loss={train_loss/len(train_loader):.4f}, "
-                        f"Train Acc={train_acc:.1f}%, Val Loss={val_loss/len(val_loader):.4f}, "
+            logging.info(f"Epoch {epoch+1:3d}: Train Loss={epoch_train_loss:.4f}, "
+                        f"Train Acc={train_acc:.1f}%, Val Loss={epoch_val_loss:.4f}, "
                         f"Val Acc={val_acc:.1f}%")
     
     logging.info("Training completed")
-    return model
+    return model, history
+
+
+def plot_loss_curves(history: dict) -> str:
+    """Plot training and validation loss curves.
+    
+    Returns:
+        str: Filename of saved plot
+    """
+    plt.figure(figsize=(8, 6))
+    plt.plot(history['epochs'], history['train_loss'], 'b-', label='Training Loss', linewidth=2)
+    plt.plot(history['epochs'], history['val_loss'], 'r-', label='Validation Loss', linewidth=2)
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training and Validation Loss')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    # Save plot with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_directory = "outputs"
+    os.makedirs(output_directory, exist_ok=True)
+    loss_filename = f"{output_directory}/loss_curves_{timestamp}.png"
+    
+    plt.savefig(loss_filename, dpi=150, bbox_inches='tight')
+    plt.close()
+    
+    return loss_filename
+
+
+def plot_accuracy_curves(history: dict) -> str:
+    """Plot training and validation accuracy curves.
+    
+    Returns:
+        str: Filename of saved plot
+    """
+    plt.figure(figsize=(8, 6))
+    plt.plot(history['epochs'], history['train_acc'], 'b-', label='Training Accuracy', linewidth=2)
+    plt.plot(history['epochs'], history['val_acc'], 'r-', label='Validation Accuracy', linewidth=2)
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy (%)')
+    plt.title('Training and Validation Accuracy')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    # Save plot with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_directory = "outputs"
+    os.makedirs(output_directory, exist_ok=True)
+    acc_filename = f"{output_directory}/accuracy_curves_{timestamp}.png"
+    
+    plt.savefig(acc_filename, dpi=150, bbox_inches='tight')
+    plt.close()
+    
+    return acc_filename
 
 
 def evaluate_model(model: nn.Module, test_loader: DataLoader) -> None:
@@ -352,7 +450,14 @@ def main():
     
     # Train model
     logging.info("5. Training model...")
-    model = train_model(model, train_loader, val_loader)
+    model, training_history = train_model(model, train_loader, val_loader)
+    
+    # Plot training curves for overfitting analysis
+    logging.info("5b. Generating training curves...")
+    loss_plot_file = plot_loss_curves(training_history)
+    acc_plot_file = plot_accuracy_curves(training_history)
+    logging.info(f"Loss curves saved as '{loss_plot_file}'")
+    logging.info(f"Accuracy curves saved as '{acc_plot_file}'")
     
     # Evaluate model
     logging.info("6. Evaluating model...")
