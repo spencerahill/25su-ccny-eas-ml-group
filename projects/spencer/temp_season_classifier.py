@@ -67,14 +67,10 @@ def setup_logging() -> None:
 
 def load_and_explore_data(filepath: str) -> tuple[np.ndarray, xr.DataArray]:
     """Load temperature data from netCDF file."""
-    ds = xr.open_dataset(filepath)
-
-    # Extract temperature and time coordinate
-    temp_avg = ds["temp_avg"].values
-    time_coord = ds["time"]
-
-    # Close dataset
-    ds.close()
+    with xr.open_dataset(filepath) as ds:
+        # Extract temperature and time coordinate
+        temp_avg = ds["temp_avg"].values
+        time_coord = ds["time"]
 
     logging.info(f"Loaded {len(temp_avg)} temperature records")
     logging.info(
@@ -534,7 +530,9 @@ def main():
 
     # Train model
     logging.info("5. Training model...")
-    model, training_history = train_model(model, train_loader, val_loader)
+    model, training_history = train_model(
+        model, train_loader, val_loader, epochs=200, learning_rate=0.1
+    )
 
     # Plot training curves for overfitting analysis
     logging.info("5b. Generating training curves...")
