@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import logging
 import os
+import argparse
 from datetime import datetime
 
 
@@ -501,8 +502,33 @@ def evaluate_model(model: nn.Module, test_loader: DataLoader) -> None:
     plt.close()
 
 
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="NYC Temperature to Season Classification Model",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--learning-rate",
+        "--lr",
+        type=float,
+        default=0.01,
+        help="Learning rate for SGD optimizer",
+    )
+
+    parser.add_argument(
+        "--epochs", type=int, default=100, help="Number of training epochs"
+    )
+
+    return parser.parse_args()
+
+
 def main():
     """Main execution pipeline."""
+    # Parse command line arguments
+    args = parse_arguments()
+
     # File path
     data_file = "data/central-park-station_daily-data_18690101-20230930.nc"
 
@@ -510,6 +536,9 @@ def main():
     setup_logging()
 
     logging.info("=== NYC TEMPERATURE TO SEASON CLASSIFICATION ===")
+    logging.info(
+        f"Training parameters: epochs={args.epochs}, learning_rate={args.learning_rate}"
+    )
 
     # Load data
     logging.info("1. Loading data...")
@@ -531,7 +560,11 @@ def main():
     # Train model
     logging.info("5. Training model...")
     model, training_history = train_model(
-        model, train_loader, val_loader, epochs=200, learning_rate=0.1
+        model,
+        train_loader,
+        val_loader,
+        epochs=args.epochs,
+        learning_rate=args.learning_rate,
     )
 
     # Plot training curves for overfitting analysis
