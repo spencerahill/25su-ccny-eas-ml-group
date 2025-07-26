@@ -14,6 +14,7 @@ import xarray as xr
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import seaborn as sns
 import logging
@@ -292,35 +293,46 @@ def train_model(
     }
 
     for epoch in range(epochs):
-        # Training phase
-        model.train()
+        # Training phase - model learns from data
+        model.train()  # Enable training mode (affects dropout, batch norm)
         train_loss = 0.0
         train_correct = 0
         train_total = 0
 
-        for batch_temps, batch_labels in train_loader:
-            optimizer.zero_grad()
-            outputs = model(batch_temps)
-            loss = criterion(outputs, batch_labels)
-            loss.backward()
-            optimizer.step()
+        for (
+            batch_temps,
+            batch_labels,
+        ) in train_loader:  # Process in batches (typically 64 samples)
+            # Core training steps for each batch:
+            optimizer.zero_grad()  # 1. Clear gradients from previous batch
+            outputs = model(batch_temps)  # 2. Forward pass: get predictions
+            loss = criterion(outputs, batch_labels)  # 3. Calculate how wrong we are
+            loss.backward()  # 4. Backward pass: compute gradients
+            optimizer.step()  # 5. Update weights using gradients
 
-            train_loss += loss.item()
-            _, predicted = torch.max(outputs.data, 1)
-            train_total += batch_labels.size(0)
-            train_correct += (predicted == batch_labels).sum().item()
+            # Track statistics for monitoring
+            train_loss += loss.item()  # Accumulate loss across batches
+            _, predicted = torch.max(
+                outputs.data, 1
+            )  # Get predicted class (0, 1, or 2)
+            train_total += batch_labels.size(0)  # Count total samples
+            train_correct += (
+                (predicted == batch_labels).sum().item()
+            )  # Count correct predictions
 
-        # Validation phase
-        model.eval()
+        # Validation phase - test current model without learning
+        model.eval()  # Switch to evaluation mode (disables dropout, etc.)
         val_loss = 0.0
         val_correct = 0
         val_total = 0
 
-        with torch.no_grad():
+        with torch.no_grad():  # Disable gradient computation (saves memory, speeds up)
             for batch_temps, batch_labels in val_loader:
-                outputs = model(batch_temps)
-                loss = criterion(outputs, batch_labels)
+                # Only forward pass - no learning, just measuring performance
+                outputs = model(batch_temps)  # Get predictions
+                loss = criterion(outputs, batch_labels)  # Calculate loss
 
+                # Track validation statistics (same as training, but no weight updates)
                 val_loss += loss.item()
                 _, predicted = torch.max(outputs.data, 1)
                 val_total += batch_labels.size(0)
