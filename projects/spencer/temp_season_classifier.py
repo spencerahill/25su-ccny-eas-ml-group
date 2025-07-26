@@ -435,7 +435,54 @@ def plot_accuracy_curves(history: dict) -> str:
     return acc_filename
 
 
-def evaluate_model(model: nn.Module, test_loader: DataLoader) -> None:
+def evaluate_temperature_baseline(
+    temperatures: np.ndarray, labels: np.ndarray
+) -> float:
+    """Evaluate simple temperature percentile-based baseline."""
+    temp_25th = np.percentile(temperatures, 25)
+    temp_75th = np.percentile(temperatures, 75)
+
+    logging.info("=== TEMPERATURE BASELINE EVALUATION ===")
+    logging.info(
+        f"Temperature thresholds: 25th percentile = {temp_25th:.1f}°F, 75th percentile = {temp_75th:.1f}°F"
+    )
+
+    # Create predictions: coldest 25% → Winter, hottest 25% → Summer, middle 50% → Spring/Fall
+    predictions = np.full_like(labels, 2)  # Default to Spring/Fall
+    predictions[temperatures < temp_25th] = 0  # Winter
+    predictions[temperatures > temp_75th] = 1  # Summer
+
+    # Calculate metrics
+    baseline_accuracy = accuracy_score(labels, predictions)
+    baseline_cm = confusion_matrix(labels, predictions)
+
+    class_names = ["Winter", "Summer", "Spring/Fall"]
+
+    logging.info(
+        f"Baseline Accuracy: {baseline_accuracy:.3f} ({baseline_accuracy*100:.1f}%)"
+    )
+
+    # Classification report
+    logging.info("Baseline Per-class Metrics:")
+    baseline_report = classification_report(
+        labels, predictions, target_names=class_names
+    )
+    logging.info(f"Baseline Classification Report:\n{baseline_report}")
+
+    # Confusion matrix
+    logging.info("Baseline Confusion Matrix:")
+    logging.info("Predicted ->")
+    logging.info(f"{'Actual':<12} {'Winter':<8} {'Summer':<8} {'Spring/Fall':<8}")
+    for i, actual_class in enumerate(class_names):
+        row = f"{actual_class:<12}"
+        for j in range(3):
+            row += f"{baseline_cm[i,j]:<8}"
+        logging.info(row)
+
+    return baseline_accuracy
+
+
+def evaluate_model(model: nn.Module, test_loader: DataLoader) -> float:
     """Evaluate model performance with comprehensive metrics."""
     model.eval()
     all_predictions = []
@@ -501,6 +548,8 @@ def evaluate_model(model: nn.Module, test_loader: DataLoader) -> None:
     logging.info(f"Confusion matrix saved as '{confusion_matrix_filename}'")
     plt.close()
 
+    return accuracy
+
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -548,17 +597,22 @@ def main():
     logging.info("2. Preprocessing data...")
     X, y = preprocess_data(temperatures, time_coord)
 
+    # Evaluate temperature baseline before train/test split
+    logging.info("3. Evaluating temperature baseline...")
+    clean_temps = temperatures[~np.isnan(temperatures)]  # Remove NaN values to match y
+    baseline_accuracy = evaluate_temperature_baseline(clean_temps, y)
+
     # Create datasets
-    logging.info("3. Creating datasets...")
+    logging.info("4. Creating datasets...")
     train_loader, val_loader, test_loader = create_datasets(X, y)
 
     # Define model
-    logging.info("4. Defining model...")
+    logging.info("5. Defining model...")
     model = TempSeasonNet()
     logging.info(f"Model architecture: {model}")
 
     # Train model
-    logging.info("5. Training model...")
+    logging.info("6. Training model...")
     model, training_history = train_model(
         model,
         train_loader,
@@ -568,15 +622,24 @@ def main():
     )
 
     # Plot training curves for overfitting analysis
-    logging.info("5b. Generating training curves...")
+    logging.info("6b. Generating training curves...")
     loss_plot_file = plot_loss_curves(training_history)
     acc_plot_file = plot_accuracy_curves(training_history)
     logging.info(f"Loss curves saved as '{loss_plot_file}'")
     logging.info(f"Accuracy curves saved as '{acc_plot_file}'")
 
-    # Evaluate model
-    logging.info("6. Evaluating model...")
-    evaluate_model(model, test_loader)
+    # Evaluate ML model
+    logging.info("7. Evaluating ML model...")
+    ml_accuracy = evaluate_model(model, test_loader)
+
+    # Compare performance
+    logging.info("=== PERFORMANCE COMPARISON ===")
+    logging.info(f"Temperature Baseline: {baseline_accuracy*100:.1f}% accuracy")
+    logging.info(f"ML Model: {ml_accuracy*100:.1f}% accuracy")
+    improvement = ml_accuracy - baseline_accuracy
+    logging.info(
+        f"ML Improvement: +{improvement*100:.1f} percentage points ({improvement/baseline_accuracy*100:.1f}% relative improvement)"
+    )
 
     logging.info("=== COMPLETE ===")
 
