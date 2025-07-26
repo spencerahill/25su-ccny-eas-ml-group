@@ -141,13 +141,58 @@ This log documents the iterative development of a temperature-to-season classifi
 
 ---
 
+---
+
+## 2025-07-25 (Evening): Regression Problem Design Decision
+
+**Context**: After successful classification implementation, need to add regression component for complete pedagogical coverage.
+
+**Problem Selection Process**:
+Considered multiple regression targets:
+- Daily temperature range (max - min)
+- Growing degree days (agricultural relevance)
+- Precipitation amount (challenging due to skewness)
+- **Next-day temperature prediction** ← SELECTED
+
+**Decision Rationale**:
+1. **Immediate student relevance**: Weather forecasting is universally understood
+2. **Clean pedagogical contrast**: Same dataset, different problem type (classification vs regression)
+3. **Strong baselines available**: "Tomorrow = today" persistence model
+4. **Time series introduction**: Natural gateway to temporal ML concepts
+5. **Interpretable metrics**: MAE in degrees Fahrenheit vs abstract accuracy percentages
+
+**Expected Learning Outcomes**:
+- **Problem type comparison**: Discrete vs continuous prediction
+- **Evaluation differences**: Accuracy/confusion matrix vs MAE/RMSE/R²
+- **Temporal dependencies**: How yesterday influences tomorrow
+- **Baseline importance**: Weather persistence as strong competitor
+
+**Implementation Plan**:
+1. Start with persistence baseline (tomorrow = today)
+2. Linear regression with multiple weather features
+3. Neural network comparison (same architectural philosophy)
+4. Feature engineering exploration (moving averages, seasonal trends)
+
+**Next Session Goals**:
+- Implement persistence baseline and dataset structure
+- Create temporal train/test splits (respect time ordering)
+- Build linear regression model for comparison
+
+---
+
 ## Next Steps & Open Questions
 
-1. **Architecture experiments**: Try deeper networks, different activation functions
-2. **Feature engineering**: Add seasonal indicators, moving averages, day-of-year
-3. **Alternative baselines**: Calendar-based rules, climatological averages
-4. **Problem reframing**: Regression instead of classification? Different season definitions?
-5. **Data analysis**: Why is the simple baseline so strong? What patterns exist?
+### Classification Project (Complete):
+1. **✅ Overfitting diagnostics**: Successfully implemented with visual examples
+2. **✅ Baseline reality check**: Discovered temperature percentiles match ML performance
+3. **✅ Educational documentation**: Complete development log and insights captured
+
+### Regression Project (Next Phase):
+1. **Implement next-day temperature prediction**: Start with persistence baseline
+2. **Temporal data handling**: Proper time series train/test splits
+3. **Model comparison**: Linear regression vs neural network vs baseline
+4. **Feature engineering**: Explore weather variable combinations and temporal features
+5. **Educational contrast**: Document differences from classification problem
 
 *Log maintained by: Claude Code assistant + Spencer*
 *Purpose: Educational material development for ML fundamentals course*
