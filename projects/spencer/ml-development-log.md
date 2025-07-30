@@ -180,12 +180,62 @@ Considered multiple regression targets:
 
 ---
 
+## 2025-07-30: L2 Regularization Implementation
+
+**Context**: Adding regularization techniques to demonstrate overfitting prevention strategies
+
+**Implementation Details**:
+- Added L2 regularization (weight decay) parameter to SGD optimizer
+- Implemented `--weight-decay` command-line argument with default 0.0
+- Updated logging to track regularization strength alongside other hyperparameters
+
+**Regularization Experiments**:
+Tested three regularization strengths over 50 epochs:
+
+1. **No Regularization** (weight_decay=0.0):
+   - Test Accuracy: 75.8%
+   - Final Training Loss: 0.5145, Validation Loss: 0.5198
+
+2. **Moderate Regularization** (weight_decay=0.001):
+   - Test Accuracy: 75.7%
+   - Final Training Loss: 0.5166, Validation Loss: 0.5218
+
+3. **Strong Regularization** (weight_decay=0.01):
+   - Test Accuracy: 75.7%
+   - Final Training Loss: 0.5273, Validation Loss: 0.5315
+
+**Key Observations**:
+- **Minimal overfitting detected**: All experiments showed training/validation losses converging
+- **Regularization impact**: Higher weight decay slightly increased both training and validation losses
+- **Performance consistency**: All configurations achieved ~75.7-75.8% accuracy
+- **Pedagogical value**: Demonstrates that this problem doesn't require heavy regularization
+
+**Why Minimal Regularization Impact?**
+1. **Simple architecture**: Only 1 → 32 → 3 neurons (minimal parameters to overfit)
+2. **Large dataset**: 56,520 temperature records provide ample training data
+3. **Simple pattern**: Temperature-to-season mapping is relatively straightforward
+4. **Early stopping implicit**: 50 epochs may prevent significant overfitting
+
+**Educational Insights**:
+- **Not all problems need regularization**: Demonstrates when simple models suffice
+- **Regularization trade-offs**: Shows how weight decay affects training dynamics
+- **Hyperparameter exploration**: Command-line interface enables easy experimentation
+- **Baseline comparison remains crucial**: Temperature percentiles still match ML performance
+
+**Technical Implementation**:
+- L2 regularization added via PyTorch's built-in `weight_decay` parameter
+- Clean integration with existing training pipeline
+- Proper logging and experiment tracking maintained
+
+---
+
 ## Next Steps & Open Questions
 
 ### Classification Project (Complete):
 1. **✅ Overfitting diagnostics**: Successfully implemented with visual examples
 2. **✅ Baseline reality check**: Discovered temperature percentiles match ML performance
-3. **✅ Educational documentation**: Complete development log and insights captured
+3. **✅ L2 regularization**: Implemented and tested weight decay effects
+4. **✅ Educational documentation**: Complete development log and insights captured
 
 ### Regression Project (Next Phase):
 1. **Implement next-day temperature prediction**: Start with persistence baseline

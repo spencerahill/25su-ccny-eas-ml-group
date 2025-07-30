@@ -270,6 +270,7 @@ def train_model(
     val_loader: DataLoader,
     epochs: int = 100,
     learning_rate: float = 0.01,
+    weight_decay: float = 0.0,
 ) -> tuple[nn.Module, dict]:
     """Train the model using SGD optimizer.
 
@@ -277,9 +278,13 @@ def train_model(
         tuple: (trained_model, training_history)
     """
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = optim.SGD(
+        model.parameters(), lr=learning_rate, weight_decay=weight_decay
+    )
 
-    logging.info(f"Training for {epochs} epochs with learning rate {learning_rate}")
+    logging.info(
+        f"Training for {epochs} epochs with learning rate {learning_rate}, weight decay {weight_decay}"
+    )
     logging.debug(f"Using criterion: {criterion.__class__.__name__}")
     logging.debug(f"Using optimizer: {optimizer.__class__.__name__}")
 
@@ -582,6 +587,14 @@ def parse_arguments():
         "--epochs", type=int, default=100, help="Number of training epochs"
     )
 
+    parser.add_argument(
+        "--weight-decay",
+        "--wd",
+        type=float,
+        default=0.0,
+        help="L2 regularization strength (weight decay)",
+    )
+
     return parser.parse_args()
 
 
@@ -598,7 +611,7 @@ def main():
 
     logging.info("=== NYC TEMPERATURE TO SEASON CLASSIFICATION ===")
     logging.info(
-        f"Training parameters: epochs={args.epochs}, learning_rate={args.learning_rate}"
+        f"Training parameters: epochs={args.epochs}, learning_rate={args.learning_rate}, weight_decay={args.weight_decay}"
     )
 
     # Load data
@@ -631,6 +644,7 @@ def main():
         val_loader,
         epochs=args.epochs,
         learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
     )
 
     # Plot training curves for overfitting analysis
