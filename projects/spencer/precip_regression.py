@@ -100,6 +100,7 @@ def create_lagged_features(
     temp_max: np.ndarray,
     time_coord: xr.DataArray,
     n_lags: int = 7,
+    min_precip_threshold: float = 0.0,
 ) -> Tuple[np.ndarray, np.ndarray, xr.DataArray]:
     """Create feature matrix with lagged variables.
 
@@ -115,6 +116,7 @@ def create_lagged_features(
         temp_max: Daily maximum temperature
         time_coord: Time coordinate
         n_lags: Number of previous days to include (default 7)
+        min_precip_threshold: Only include days with precip >= threshold (default 0.0 keeps all)
 
     Returns:
         Tuple of (features, target, time_coord_truncated)
@@ -134,8 +136,10 @@ def create_lagged_features(
     # We lose n_lags days at the start since we need lookback
     n_valid_samples = n_samples - n_lags
 
-    # Initialize feature matrix
-    X = np.zeros((n_valid_samples, n_features))
+    # Initialize feature matrix for ALL valid days first
+    X_all = np.zeros((n_valid_samples, n_features))
+    y_all = np.zeros(n_valid_samples)
+    time_all = []
 
     # For each valid day (starting from index n_lags)
     for i in range(n_lags, n_samples):
@@ -143,26 +147,41 @@ def create_lagged_features(
         feature_idx = 0
 
         # Same-day temperature features
-        X[row_idx, feature_idx] = temp_min_clean[i]
-        X[row_idx, feature_idx + 1] = temp_max_clean[i]
+        X_all[row_idx, feature_idx] = temp_min_clean[i]
+        X_all[row_idx, feature_idx + 1] = temp_max_clean[i]
         feature_idx += 2
 
         # Lagged features (going backwards in time)
         for lag in range(1, n_lags + 1):
             lag_idx = i - lag
-            X[row_idx, feature_idx] = temp_min_clean[lag_idx]
-            X[row_idx, feature_idx + 1] = temp_max_clean[lag_idx]
-            X[row_idx, feature_idx + 2] = precip_clean[lag_idx]
+            X_all[row_idx, feature_idx] = temp_min_clean[lag_idx]
+            X_all[row_idx, feature_idx + 1] = temp_max_clean[lag_idx]
+            X_all[row_idx, feature_idx + 2] = precip_clean[lag_idx]
             feature_idx += 3
 
-    # Target is same-day precipitation (starting from index n_lags)
-    y = precip_clean[n_lags:]
-    time_truncated = time_clean[n_lags:]
+        # Target is same-day precipitation
+        y_all[row_idx] = precip_clean[i]
+        time_all.append(time_clean[i].values)
+
+    # Filter based on precipitation threshold
+    keep_mask = y_all >= min_precip_threshold
+    X = X_all[keep_mask]
+    y = y_all[keep_mask]
+    time_truncated = xr.DataArray(np.array(time_all)[keep_mask], dims=["time"])
 
     logging.info(f"Created lagged features with n_lags={n_lags}")
+    logging.info(f"Lost {n_lags} days at beginning due to lagging")
+    logging.info(f"Total valid days (after lagging): {n_valid_samples}")
+    if min_precip_threshold > 0:
+        n_filtered = np.sum(~keep_mask)
+        logging.info(f"Min precip threshold: {min_precip_threshold} inches")
+        logging.info(f"Days kept: {len(y)} ({len(y)/n_valid_samples*100:.1f}%)")
+        logging.info(
+            f"Days filtered out: {n_filtered} ({n_filtered/n_valid_samples*100:.1f}%)"
+        )
+
     logging.info(f"Feature matrix shape: {X.shape} ({n_features} features)")
     logging.info(f"Target shape: {y.shape}")
-    logging.info(f"Lost {n_lags} days at beginning due to lagging")
     logging.debug(
         f"Feature names would be: temp_min_d0, temp_max_d0, "
         + ", ".join(
@@ -175,17 +194,20 @@ def create_lagged_features(
 
     # Log precipitation statistics
     logging.info(f"Target precip: mean={np.mean(y):.3f}, std={np.std(y):.3f}")
-    logging.info(
-        f"Dry days (<0.01): {np.sum(y < 0.01)} ({np.sum(y < 0.01)/len(y)*100:.1f}%)"
-    )
+    logging.info(f"Target precip range: min={np.min(y):.3f}, max={np.max(y):.3f}")
 
     return X, y, time_truncated
 
 
 def compute_climatology_baseline(
-    precip: np.ndarray, time_coord: xr.DataArray
+    precip: np.ndarray, time_coord: xr.DataArray, min_precip_threshold: float = 0.0
 ) -> Dict[int, float]:
     """Compute climatological mean precipitation for each day-of-year.
+
+    Args:
+        precip: Precipitation values
+        time_coord: Time coordinates
+        min_precip_threshold: Only include days >= threshold in climatology
 
     Returns:
         Dictionary mapping day-of-year (1-366) to mean precipitation
@@ -195,12 +217,16 @@ def compute_climatology_baseline(
     # Calculate mean for each day of year
     climatology = {}
     for d in range(1, 367):  # Days 1-366
-        mask = doy == d
+        mask = (doy == d) & (precip >= min_precip_threshold)
         if np.sum(mask) > 0:
             climatology[d] = np.mean(precip[mask])
         else:
-            # For leap day if not present, use average of neighboring days
-            climatology[d] = (climatology.get(d - 1, 0) + climatology.get(d + 1, 0)) / 2
+            # Fallback: use overall mean for days meeting threshold
+            overall_mask = precip >= min_precip_threshold
+            if np.sum(overall_mask) > 0:
+                climatology[d] = np.mean(precip[overall_mask])
+            else:
+                climatology[d] = 0.0
 
     logging.debug(f"Computed climatology for {len(climatology)} days of year")
     logging.debug(
@@ -591,6 +617,13 @@ def parse_arguments():
         help="Number of neurons in hidden layer",
     )
 
+    parser.add_argument(
+        "--min-precip-threshold",
+        type=float,
+        default=0.0,
+        help="Minimum precipitation (inches) to include days (default 0.0 keeps all days, 0.01 filters to rainy days only)",
+    )
+
     return parser.parse_args()
 
 
@@ -606,7 +639,8 @@ def main():
     logging.info("=== NYC PRECIPITATION REGRESSION ===")
     logging.info(
         f"Training parameters: epochs={args.epochs}, learning_rate={args.learning_rate}, "
-        f"n_lags={args.n_lags}, hidden_size={args.hidden_size}"
+        f"n_lags={args.n_lags}, hidden_size={args.hidden_size}, "
+        f"min_precip_threshold={args.min_precip_threshold}"
     )
 
     # Load data
@@ -616,7 +650,12 @@ def main():
     # Create lagged features
     logging.info("2. Creating lagged features...")
     X, y, time_truncated = create_lagged_features(
-        precip, temp_min, temp_max, time_coord, n_lags=args.n_lags
+        precip,
+        temp_min,
+        temp_max,
+        time_coord,
+        n_lags=args.n_lags,
+        min_precip_threshold=args.min_precip_threshold,
     )
 
     # Compute climatology for baseline
@@ -624,7 +663,9 @@ def main():
     # Remove NaNs from full dataset for climatology
     valid_mask = ~np.isnan(precip)
     climatology = compute_climatology_baseline(
-        precip[valid_mask], time_coord[valid_mask]
+        precip[valid_mask],
+        time_coord[valid_mask],
+        min_precip_threshold=args.min_precip_threshold,
     )
 
     # Create datasets
@@ -696,19 +737,6 @@ def main():
         f"{'Neural Network':<20} "
         f"{nn_metrics['MAE']:<12.4f} {nn_metrics['RMSE']:<12.4f} {nn_metrics['R2']:<12.4f}"
     )
-
-    # Summary insights
-    logging.info("\n=== PEDAGOGICAL INSIGHTS ===")
-    logging.info("1. Precipitation is challenging to predict from temperature alone")
-    logging.info("2. Weak correlations (r~0.05) limit model performance")
-    logging.info("3. Lagged precipitation features help capture temporal patterns")
-    logging.info("4. Even complex models struggle with inherently noisy relationships")
-
-    if nn_metrics["R2"] > baseline_results["climatology"]["R2"]:
-        improvement = nn_metrics["R2"] - baseline_results["climatology"]["R2"]
-        logging.info(f"5. NN improves over climatology by ΔR²={improvement:.4f}")
-    else:
-        logging.info("5. NN does not outperform simple climatology baseline")
 
     logging.info("\n=== COMPLETE ===")
 
