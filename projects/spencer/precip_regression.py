@@ -26,7 +26,7 @@ import logging
 import os
 import argparse
 from datetime import datetime
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
 
 def setup_logging() -> None:
@@ -301,19 +301,41 @@ def create_datasets(
 
 
 class PrecipNet(nn.Module):
-    """Simple feedforward network for precipitation regression.
+    """Feedforward network for precipitation regression.
 
-    Architecture: input -> hidden layer -> output
-    Single hidden layer with ReLU activation for pedagogical simplicity.
+    Architecture: input -> hidden layers -> output
+    Each hidden layer followed by ReLU activation.
     """
 
-    def __init__(self, n_features: int, hidden_size: int = 32):
+    def __init__(self, n_features: int, hidden_layers: List[int]):
+        """
+        Args:
+            n_features: Number of input features
+            hidden_layers: List of hidden layer sizes (e.g., [64, 32] for 2 layers)
+        """
         super().__init__()
-        self.network = nn.Sequential(
-            nn.Linear(n_features, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, 1),  # Single output (precipitation amount)
-        )
+
+        # Validate architecture
+        if len(hidden_layers) == 0:
+            raise ValueError("Must specify at least one hidden layer")
+        if any(size <= 0 for size in hidden_layers):
+            raise ValueError("All hidden layer sizes must be positive integers")
+
+        layers = []
+
+        # Input to first hidden layer
+        layers.append(nn.Linear(n_features, hidden_layers[0]))
+        layers.append(nn.ReLU())
+
+        # Additional hidden layers (if any)
+        for i in range(len(hidden_layers) - 1):
+            layers.append(nn.Linear(hidden_layers[i], hidden_layers[i + 1]))
+            layers.append(nn.ReLU())
+
+        # Final hidden layer to output
+        layers.append(nn.Linear(hidden_layers[-1], 1))
+
+        self.network = nn.Sequential(*layers)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.network(x)
@@ -611,10 +633,11 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--hidden-size",
+        "--hidden-layers",
         type=int,
-        default=32,
-        help="Number of neurons in hidden layer",
+        nargs="+",
+        default=[32],
+        help="Hidden layer sizes (space-separated). Example: --hidden-layers 64 32 16 creates a 3-layer network with decreasing width",
     )
 
     parser.add_argument(
@@ -639,7 +662,7 @@ def main():
     logging.info("=== NYC PRECIPITATION REGRESSION ===")
     logging.info(
         f"Training parameters: epochs={args.epochs}, learning_rate={args.learning_rate}, "
-        f"n_lags={args.n_lags}, hidden_size={args.hidden_size}, "
+        f"n_lags={args.n_lags}, hidden_layers={args.hidden_layers}, "
         f"min_precip_threshold={args.min_precip_threshold}"
     )
 
@@ -684,9 +707,18 @@ def main():
     # Define model
     logging.info("5. Defining model...")
     n_features = X.shape[1]
-    model = PrecipNet(n_features=n_features, hidden_size=args.hidden_size)
-    logging.info(f"Model architecture: {model}")
-    logging.debug(f"Number of parameters: {sum(p.numel() for p in model.parameters())}")
+    model = PrecipNet(n_features=n_features, hidden_layers=args.hidden_layers)
+
+    # Log architecture details
+    arch_str = (
+        f"input({n_features}) -> "
+        + " -> ".join([f"hidden({size})" for size in args.hidden_layers])
+        + " -> output(1)"
+    )
+    logging.info(f"Model architecture: {arch_str}")
+    logging.info(f"Total hidden layers: {len(args.hidden_layers)}")
+    logging.info(f"Total parameters: {sum(p.numel() for p in model.parameters()):,}")
+    logging.debug(f"Model details:\n{model}")
 
     # Train model
     logging.info("6. Training model...")
