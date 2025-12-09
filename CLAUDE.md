@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **ALWAYS follow these critical instructions:**
 
 - **GIT COMMIT after every nontrivial edit** - Never forget to commit and push changes
-- **Use conda environment `25su-ml-group`** for all code execution and package management
+- **Use `mamba` and the environment `25su-ml-group`** for all code execution and package management
 - **Inspect every plot you generate** - Check for bugs and interpret scientifically
 - **Verify your work thoroughly** - Don't just check if files exist, examine their contents
 
@@ -92,3 +92,12 @@ For Spencer's project and similar pedagogical implementations:
 ## Visualization Guidelines
 
 - Whenever you generate a new plot, *always* inspect that plot, evaluating it for (1) potential signs of bugs or other problems, and then (2) to interpret it scientifically.
+
+## Pedagogical Code Writing Guidelines
+
+- Assume that every line of code you write will be used by students new to ML, and some of them pretty new to programming entirely.
+  - Strive for clarity and simplicity
+  - Include a bit more commenting than you'd typically include
+  - Balance between being straightforward and elegant
+  - Remember that code can be both clear and elegant
+  - When clarity and elegance are in tension, make reasonable judgments or seek input

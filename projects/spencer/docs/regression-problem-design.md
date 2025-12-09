@@ -32,7 +32,7 @@
 | Aspect | Season Classification | Next-Day Temperature |
 |--------|----------------------|---------------------|
 | **Target** | Categorical (Winter/Summer/Spring-Fall) | Continuous (temperature in °F) |
-| **Baseline** | Temperature percentiles (75.6%) | Persistence: tomorrow = today |
+| **Baseline** | Temperature percentiles (75.6%) | Climatology, Persistence, AR(1) |
 | **Evaluation** | Accuracy, confusion matrix | MAE, RMSE, R² |
 | **Interpretability** | "Correct season 76% of time" | "Off by X degrees on average" |
 | **Complexity** | Static pattern recognition | Temporal sequence prediction |
@@ -59,11 +59,32 @@ X = [last_3_days_avg_temp, temp_range_today, precip_yesterday,
 y = temp_avg_tomorrow
 ```
 
+### **Baseline Hierarchy & Expectations**
+
+**Raw Temperature Baselines:**
+1. **Climatology**: `temp_tomorrow = daily_normal[day_of_year]` 
+   - Pure seasonal cycle, likely strongest baseline
+   - Shows how much skill comes from just knowing the calendar
+2. **Persistence**: `temp_tomorrow = temp_today`
+   - Strong baseline for day-to-day continuity (~1°F typical change)
+   - Works well even in transitional seasons due to gradual changes
+3. **AR(1)**: `temp_tomorrow = α + β × temp_today`
+   - Simple autoregressive model with mean reversion
+   - May only marginally improve on persistence
+
+**Temperature Anomaly Models:**
+- **Climatology**: N/A (anomalies have zero climatology by definition)
+- **Persistence**: `anomaly_tomorrow = anomaly_today` 
+   - Reasonable baseline since weather patterns persist
+- **AR(1)**: `anomaly_tomorrow = α + β × anomaly_today`
+   - Should beat persistence through mean reversion to normal
+
+**Expected Performance:** Simple statistical baselines likely hard to beat
+
 ### **Evaluation Strategy**
-1. **Persistence Baseline**: `temp_tomorrow = temp_today`
-2. **Linear Regression**: Standard sklearn implementation
-3. **Neural Network**: Similar architecture to classification model
-4. **Metrics**: MAE (primary), RMSE (secondary), R² (goodness of fit)
+1. **Multiple Baselines**: Climatology → Persistence → AR(1) → ML models
+2. **Raw vs Anomaly**: Compare problem formulations
+3. **Metrics**: MAE (primary), RMSE (secondary), R² (goodness of fit)
 
 ## Educational Value Comparison
 
@@ -81,24 +102,44 @@ y = temp_avg_tomorrow
 
 ## Expected Outcomes & Lessons
 
-### **Likely Results:**
-- **Persistence baseline**: Probably quite strong (weather has momentum)
-- **Linear regression**: May capture seasonal trends better than persistence
-- **Neural network**: Might overfit given the simplicity of the relationship
+### **Revised Expectations:**
+- **Climatology**: Dominant baseline for raw temperatures (seasonal cycle)
+- **Persistence**: Surprisingly strong for both raw temps and anomalies
+- **AR(1)**: Modest improvement over persistence, may not beat climatology
+- **ML models**: May struggle to beat simple statistical methods
+- **Key insight**: Problem formulation (raw vs anomaly) affects baseline availability
 
 ### **Key Teaching Moments:**
-1. **Weather has memory**: Yesterday's temperature is highly predictive
-2. **Seasonal patterns**: Day-of-year as crucial feature
-3. **Evaluation differences**: What does "3°F MAE" mean vs "76% accuracy"?
-4. **Problem complexity**: Time series harder than static classification
+1. **Climatology is powerful**: Most skill comes from seasonal cycle
+2. **Day-to-day persistence**: Small daily temperature changes make persistence strong
+3. **Problem formulation matters**: Raw vs anomaly changes baseline hierarchy
+4. **Simple baselines**: AR(1) and persistence often compete with ML
+5. **When ML doesn't help**: Some problems favor statistical approaches
+6. **Evaluation differences**: "3°F MAE" vs "76% accuracy" interpretation
 
-## Next Steps
+## Updated Implementation Plan
 
-1. **Implement persistence baseline** first (establish benchmark)
-2. **Create temporal dataset** with proper t → t+1 structure
-3. **Implement linear regression** model with multiple features
-4. **Compare to neural network** version (same architecture philosophy)
-5. **Analyze temporal patterns** and model errors
+### **Phase 1: Foundation**
+1. **Temporal data splitting** (crucial for time series validation)
+2. **Climatology computation** (365-day normals from training data only)
+3. **Data setup** for both raw temperatures and anomalies
+
+### **Phase 2: Raw Temperature Models**
+1. **Climatology baseline**: Daily normal temperatures
+2. **Persistence baseline**: Tomorrow = today
+3. **AR(1) model**: Simple autoregressive (no seasonal terms)
+4. **Linear regression**: Multiple weather features
+5. **Neural network**: Same architectural approach as classification
+
+### **Phase 3: Anomaly Models** 
+1. **Persistence**: Anomaly tomorrow = anomaly today
+2. **AR(1)**: Pure autoregressive on anomalies
+3. **Linear/NN models**: Focus on weather patterns without seasonality
+
+### **Phase 4: Comparative Analysis**
+- Raw vs anomaly model performance
+- Statistical vs ML method comparison
+- Skill attribution: seasonal cycle vs weather variability
 
 ## Success Criteria
 
