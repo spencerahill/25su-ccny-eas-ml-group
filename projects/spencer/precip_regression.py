@@ -250,18 +250,180 @@ class PrecipDataset(Dataset):
         return self.features[idx], self.targets[idx]
 
 
+def get_feature_indices(n_lags: int) -> Tuple[List[int], List[int]]:
+    """Get indices of temperature vs precipitation features.
+
+    Feature structure:
+    - Features 0-1: same-day temp_min, temp_max
+    - For each lag (1 to n_lags):
+        - temp_min, temp_max, precip (3 features per lag)
+
+    Args:
+        n_lags: Number of lagged days
+
+    Returns:
+        Tuple of (temp_indices, precip_indices)
+    """
+    temp_indices = [0, 1]  # Same-day temperatures
+    precip_indices = []
+
+    # For each lag: features are temp_min, temp_max, precip
+    for lag in range(n_lags):
+        base_idx = 2 + lag * 3  # Start of this lag's features
+        temp_indices.extend([base_idx, base_idx + 1])  # temp_min, temp_max
+        precip_indices.append(base_idx + 2)  # precip
+
+    return temp_indices, precip_indices
+
+
+def standardize_features(
+    X_train: np.ndarray,
+    X_val: np.ndarray,
+    X_test: np.ndarray,
+    n_lags: int,
+    log_epsilon: float = 1.0,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict]:
+    """Apply variable-specific standardization.
+
+    Temperature features: z-score standardization
+    Precipitation features: log transform then z-score standardization
+
+    All statistics computed on training set only and applied to all splits.
+
+    Args:
+        X_train, X_val, X_test: Feature arrays
+        n_lags: Number of lagged days (needed to identify feature types)
+        log_epsilon: Value to add before log transform (default 1.0)
+
+    Returns:
+        Tuple of (X_train_scaled, X_val_scaled, X_test_scaled, stats_dict)
+    """
+    temp_indices, precip_indices = get_feature_indices(n_lags)
+
+    logging.info("=== FEATURE STANDARDIZATION ===")
+    logging.info(f"Temperature feature indices: {temp_indices}")
+    logging.info(f"Precipitation feature indices: {precip_indices}")
+
+    # Copy arrays to avoid modifying originals
+    X_train_scaled = X_train.copy()
+    X_val_scaled = X_val.copy()
+    X_test_scaled = X_test.copy()
+
+    stats = {}
+
+    # Standardize temperature features (z-score)
+    for idx in temp_indices:
+        mean = X_train[:, idx].mean()
+        std = X_train[:, idx].std()
+
+        X_train_scaled[:, idx] = (X_train[:, idx] - mean) / std
+        X_val_scaled[:, idx] = (X_val[:, idx] - mean) / std
+        X_test_scaled[:, idx] = (X_test[:, idx] - mean) / std
+
+        stats[f"temp_{idx}_mean"] = mean
+        stats[f"temp_{idx}_std"] = std
+
+    logging.info(f"Standardized {len(temp_indices)} temperature features")
+
+    # Transform precipitation features (log then z-score)
+    for idx in precip_indices:
+        # Log transform
+        X_train_log = np.log(X_train[:, idx] + log_epsilon)
+        X_val_log = np.log(X_val[:, idx] + log_epsilon)
+        X_test_log = np.log(X_test[:, idx] + log_epsilon)
+
+        # Standardize
+        mean = X_train_log.mean()
+        std = X_train_log.std()
+
+        X_train_scaled[:, idx] = (X_train_log - mean) / std
+        X_val_scaled[:, idx] = (X_val_log - mean) / std
+        X_test_scaled[:, idx] = (X_test_log - mean) / std
+
+        stats[f"precip_{idx}_mean"] = mean
+        stats[f"precip_{idx}_std"] = std
+
+    stats["log_epsilon"] = log_epsilon
+    logging.info(
+        f"Standardized {len(precip_indices)} precipitation features (log transform with epsilon={log_epsilon})"
+    )
+
+    return X_train_scaled, X_val_scaled, X_test_scaled, stats
+
+
+def standardize_target(
+    y_train: np.ndarray,
+    y_val: np.ndarray,
+    y_test: np.ndarray,
+    log_epsilon: float = 1.0,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict]:
+    """Standardize target variable (precipitation).
+
+    Apply log transform then z-score standardization.
+    Statistics computed on training set only.
+
+    Args:
+        y_train, y_val, y_test: Target arrays
+        log_epsilon: Value to add before log transform
+
+    Returns:
+        Tuple of (y_train_scaled, y_val_scaled, y_test_scaled, stats_dict)
+    """
+    # Log transform
+    y_train_log = np.log(y_train + log_epsilon)
+    y_val_log = np.log(y_val + log_epsilon)
+    y_test_log = np.log(y_test + log_epsilon)
+
+    # Standardize using training statistics
+    mean = y_train_log.mean()
+    std = y_train_log.std()
+
+    y_train_scaled = (y_train_log - mean) / std
+    y_val_scaled = (y_val_log - mean) / std
+    y_test_scaled = (y_test_log - mean) / std
+
+    stats = {"mean": mean, "std": std, "log_epsilon": log_epsilon}
+
+    logging.info("=== TARGET STANDARDIZATION ===")
+    logging.info(f"Log epsilon: {log_epsilon}")
+    logging.info(f"Log-transformed mean: {mean:.4f}")
+    logging.info(f"Log-transformed std: {std:.4f}")
+
+    return y_train_scaled, y_val_scaled, y_test_scaled, stats
+
+
+def inverse_transform_target(y_scaled: np.ndarray, target_stats: Dict) -> np.ndarray:
+    """Inverse transform target predictions back to original scale.
+
+    Args:
+        y_scaled: Predictions in standardized log space
+        target_stats: Dictionary with mean, std, log_epsilon
+
+    Returns:
+        Predictions in original scale (inches)
+    """
+    # Un-standardize
+    y_log = y_scaled * target_stats["std"] + target_stats["mean"]
+
+    # Inverse log transform
+    y_original = np.exp(y_log) - target_stats["log_epsilon"]
+
+    return y_original
+
+
 def create_datasets(
     X: np.ndarray,
     y: np.ndarray,
+    n_lags: int,
     train_ratio: float = 0.6,
     val_ratio: float = 0.2,
     batch_size: int = 64,
-) -> Tuple[DataLoader, DataLoader, DataLoader, Tuple[np.ndarray, ...]]:
-    """Split data and create DataLoader objects.
+) -> Tuple[DataLoader, DataLoader, DataLoader, Tuple[np.ndarray, ...], Dict, Dict]:
+    """Split data, standardize, and create DataLoader objects.
 
     Returns:
-        Tuple of (train_loader, val_loader, test_loader, split_arrays)
-        where split_arrays = (X_train, X_val, X_test, y_train, y_val, y_test)
+        Tuple of (train_loader, val_loader, test_loader, split_arrays, feature_stats, target_stats)
+        where split_arrays = (X_train, X_val, X_test, y_train, y_val, y_test) in ORIGINAL scale
     """
     test_ratio = 1.0 - train_ratio - val_ratio
 
@@ -284,10 +446,20 @@ def create_datasets(
         f"Val={len(X_val)/len(X)*100:.1f}%, Test={len(X_test)/len(X)*100:.1f}%"
     )
 
-    # Create datasets
-    train_dataset = PrecipDataset(X_train, y_train)
-    val_dataset = PrecipDataset(X_val, y_val)
-    test_dataset = PrecipDataset(X_test, y_test)
+    # Standardize features (variable-specific)
+    X_train_scaled, X_val_scaled, X_test_scaled, feature_stats = standardize_features(
+        X_train, X_val, X_test, n_lags
+    )
+
+    # Standardize target (log then z-score)
+    y_train_scaled, y_val_scaled, y_test_scaled, target_stats = standardize_target(
+        y_train, y_val, y_test
+    )
+
+    # Create datasets with scaled data
+    train_dataset = PrecipDataset(X_train_scaled, y_train_scaled)
+    val_dataset = PrecipDataset(X_val_scaled, y_val_scaled)
+    test_dataset = PrecipDataset(X_test_scaled, y_test_scaled)
 
     # Create dataloaders
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -296,8 +468,16 @@ def create_datasets(
 
     logging.debug(f"Created DataLoaders with batch_size={batch_size}")
 
+    # Return original scale data for baseline evaluation
     split_arrays = (X_train, X_val, X_test, y_train, y_val, y_test)
-    return train_loader, val_loader, test_loader, split_arrays
+    return (
+        train_loader,
+        val_loader,
+        test_loader,
+        split_arrays,
+        feature_stats,
+        target_stats,
+    )
 
 
 class PrecipNet(nn.Module):
@@ -489,23 +669,36 @@ def evaluate_model(
     model: nn.Module,
     test_loader: DataLoader,
     y_test: np.ndarray,
+    target_stats: Dict,
 ) -> Tuple[Dict[str, float], np.ndarray]:
     """Evaluate neural network model.
 
+    Model predicts in standardized log space; predictions are inverse
+    transformed to original scale for evaluation.
+
+    Args:
+        model: Trained model
+        test_loader: DataLoader with scaled features
+        y_test: True values in ORIGINAL scale
+        target_stats: Statistics for inverse transform
+
     Returns:
-        Tuple of (metrics_dict, predictions_array)
+        Tuple of (metrics_dict, predictions_array in original scale)
     """
     model.eval()
-    all_predictions = []
+    all_predictions_scaled = []
 
     with torch.no_grad():
         for batch_features, _ in test_loader:
             outputs = model(batch_features)
-            all_predictions.extend(outputs.cpu().numpy().flatten())
+            all_predictions_scaled.extend(outputs.cpu().numpy().flatten())
 
-    predictions = np.array(all_predictions)
+    predictions_scaled = np.array(all_predictions_scaled)
 
-    # Calculate metrics
+    # Inverse transform predictions to original scale
+    predictions = inverse_transform_target(predictions_scaled, target_stats)
+
+    # Calculate metrics in original scale
     mae = mean_absolute_error(y_test, predictions)
     rmse = np.sqrt(mean_squared_error(y_test, predictions))
     r2 = r2_score(y_test, predictions)
@@ -691,9 +884,16 @@ def main():
         min_precip_threshold=args.min_precip_threshold,
     )
 
-    # Create datasets
-    logging.info("4. Creating train/val/test splits...")
-    train_loader, val_loader, test_loader, split_arrays = create_datasets(X, y)
+    # Create datasets with standardization
+    logging.info("4. Creating train/val/test splits and standardizing features...")
+    (
+        train_loader,
+        val_loader,
+        test_loader,
+        split_arrays,
+        feature_stats,
+        target_stats,
+    ) = create_datasets(X, y, n_lags=args.n_lags)
     X_train, X_val, X_test, y_train, y_val, y_test = split_arrays
 
     # We need time coordinates for test set to evaluate baselines
@@ -747,7 +947,7 @@ def main():
 
     # Evaluate neural network
     logging.info("9. Evaluating neural network...")
-    nn_metrics, predictions = evaluate_model(model, test_loader, y_test)
+    nn_metrics, predictions = evaluate_model(model, test_loader, y_test, target_stats)
 
     # Plot predictions
     logging.info("10. Generating prediction plots...")
