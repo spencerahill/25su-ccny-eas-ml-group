@@ -474,29 +474,17 @@ def plot_training_curves(
     plt.plot(history["val_loss"], label="Validation Loss", linewidth=2)
     plt.xlabel("Epoch", fontsize=12)
     plt.ylabel("Loss (MSE)", fontsize=12)
-    plt.title("Training and Validation Loss", fontsize=14)
     plt.legend(fontsize=11)
     plt.grid(True, alpha=0.3)
 
-    # Add hyperparameter info as text box
+    # Add hyperparameter info as figure title
     hidden_str = "-".join(map(str, hidden_layers))
-    param_text = (
-        f"Temperature: {temp_type}\n"
-        f"Architecture: {hidden_str}\n"
-        f"Epochs: {epochs}\n"
-        f"Learning rate: {learning_rate}\n"
-        f"Batch size: {batch_size}"
+    title = (
+        f"Training and Validation Loss\n"
+        f"Temperature: {temp_type} | Architecture: {hidden_str} | "
+        f"Epochs: {epochs} | LR: {learning_rate} | Batch: {batch_size}"
     )
-    plt.text(
-        0.98,
-        0.02,
-        param_text,
-        transform=plt.gca().transAxes,
-        fontsize=9,
-        verticalalignment="bottom",
-        horizontalalignment="right",
-        bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
-    )
+    plt.suptitle(title, fontsize=11, y=0.98)
 
     plt.tight_layout()
     plt.savefig(plot_path, dpi=300)
@@ -564,25 +552,14 @@ def plot_predictions(
     ax2.set_title("Residual Plot", fontsize=13)
     ax2.grid(True, alpha=0.3)
 
-    # Add hyperparameter info as text box
+    # Add hyperparameter info as figure title
     hidden_str = "-".join(map(str, hidden_layers))
-    param_text = (
-        f"Temperature: {temp_type}\n"
-        f"Architecture: {hidden_str}\n"
-        f"Epochs: {epochs}\n"
-        f"Learning rate: {learning_rate}\n"
-        f"Batch size: {batch_size}"
+    title = (
+        f"Next-Day Temperature Prediction\n"
+        f"Temperature: {temp_type} | Architecture: {hidden_str} | "
+        f"Epochs: {epochs} | LR: {learning_rate} | Batch: {batch_size}"
     )
-    # Place in upper left of the figure (between the two subplots)
-    fig.text(
-        0.5,
-        0.95,
-        param_text,
-        fontsize=9,
-        verticalalignment="top",
-        horizontalalignment="center",
-        bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
-    )
+    fig.suptitle(title, fontsize=11, y=0.98)
 
     plt.tight_layout()
     plt.savefig(plot_path, dpi=300)
