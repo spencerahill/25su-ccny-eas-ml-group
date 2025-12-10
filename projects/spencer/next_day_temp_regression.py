@@ -261,6 +261,7 @@ def train_model(
     epochs: int,
     lr: float,
     logger: logging.Logger,
+    log_interval: int = 5,
 ) -> Tuple[nn.Module, Dict]:
     """Train the neural network.
 
@@ -271,6 +272,7 @@ def train_model(
         epochs: Number of training epochs
         lr: Learning rate
         logger: Logger instance
+        log_interval: Log progress every N epochs
 
     Returns:
         Trained model and training history
@@ -311,8 +313,8 @@ def train_model(
         history["train_loss"].append(avg_train_loss)
         history["val_loss"].append(avg_val_loss)
 
-        # Log progress every 10 epochs
-        if (epoch + 1) % 10 == 0:
+        # Log progress at specified interval
+        if (epoch + 1) % log_interval == 0:
             logger.info(
                 f"Epoch {epoch+1}/{epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}"
             )
@@ -565,6 +567,13 @@ def parse_arguments():
         help="Batch size for training (default: 64)",
     )
 
+    parser.add_argument(
+        "--log-interval",
+        type=int,
+        default=5,
+        help="Log training progress every N epochs (default: 5)",
+    )
+
     return parser.parse_args()
 
 
@@ -669,7 +678,13 @@ def main():
     logger.info(f"Total parameters: {n_params}")
 
     model, history = train_model(
-        model, train_loader, val_loader, args.epochs, args.learning_rate, logger
+        model,
+        train_loader,
+        val_loader,
+        args.epochs,
+        args.learning_rate,
+        logger,
+        args.log_interval,
     )
 
     # Plot training curves
