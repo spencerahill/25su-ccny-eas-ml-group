@@ -441,12 +441,25 @@ def evaluate_model(
     return metrics, predictions
 
 
-def plot_training_curves(history: Dict, logger: logging.Logger) -> str:
+def plot_training_curves(
+    history: Dict,
+    logger: logging.Logger,
+    temp_type: str,
+    hidden_layers: List[int],
+    epochs: int,
+    learning_rate: float,
+    batch_size: int,
+) -> str:
     """Plot and save training and validation loss curves.
 
     Args:
         history: Training history dictionary
         logger: Logger instance
+        temp_type: Temperature type (e.g., "raw temperatures" or "anomalies")
+        hidden_layers: List of hidden layer sizes
+        epochs: Number of training epochs
+        learning_rate: Learning rate used
+        batch_size: Batch size used
 
     Returns:
         Path to saved plot
@@ -464,6 +477,27 @@ def plot_training_curves(history: Dict, logger: logging.Logger) -> str:
     plt.title("Training and Validation Loss", fontsize=14)
     plt.legend(fontsize=11)
     plt.grid(True, alpha=0.3)
+
+    # Add hyperparameter info as text box
+    hidden_str = "-".join(map(str, hidden_layers))
+    param_text = (
+        f"Temperature: {temp_type}\n"
+        f"Architecture: {hidden_str}\n"
+        f"Epochs: {epochs}\n"
+        f"Learning rate: {learning_rate}\n"
+        f"Batch size: {batch_size}"
+    )
+    plt.text(
+        0.98,
+        0.02,
+        param_text,
+        transform=plt.gca().transAxes,
+        fontsize=9,
+        verticalalignment="bottom",
+        horizontalalignment="right",
+        bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
+    )
+
     plt.tight_layout()
     plt.savefig(plot_path, dpi=300)
     plt.close()
@@ -473,7 +507,14 @@ def plot_training_curves(history: Dict, logger: logging.Logger) -> str:
 
 
 def plot_predictions(
-    y_test: np.ndarray, predictions: np.ndarray, logger: logging.Logger
+    y_test: np.ndarray,
+    predictions: np.ndarray,
+    logger: logging.Logger,
+    temp_type: str,
+    hidden_layers: List[int],
+    epochs: int,
+    learning_rate: float,
+    batch_size: int,
 ) -> str:
     """Plot predicted vs actual temperatures with residuals.
 
@@ -481,6 +522,11 @@ def plot_predictions(
         y_test: Actual temperatures
         predictions: Predicted temperatures
         logger: Logger instance
+        temp_type: Temperature type (e.g., "raw temperatures" or "anomalies")
+        hidden_layers: List of hidden layer sizes
+        epochs: Number of training epochs
+        learning_rate: Learning rate used
+        batch_size: Batch size used
 
     Returns:
         Path to saved plot
@@ -517,6 +563,26 @@ def plot_predictions(
     ax2.set_ylabel("Residual (Predicted - Actual)", fontsize=12)
     ax2.set_title("Residual Plot", fontsize=13)
     ax2.grid(True, alpha=0.3)
+
+    # Add hyperparameter info as text box
+    hidden_str = "-".join(map(str, hidden_layers))
+    param_text = (
+        f"Temperature: {temp_type}\n"
+        f"Architecture: {hidden_str}\n"
+        f"Epochs: {epochs}\n"
+        f"Learning rate: {learning_rate}\n"
+        f"Batch size: {batch_size}"
+    )
+    # Place in upper left of the figure (between the two subplots)
+    fig.text(
+        0.5,
+        0.95,
+        param_text,
+        fontsize=9,
+        verticalalignment="top",
+        horizontalalignment="center",
+        bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
+    )
 
     plt.tight_layout()
     plt.savefig(plot_path, dpi=300)
@@ -688,7 +754,15 @@ def main():
     )
 
     # Plot training curves
-    plot_training_curves(history, logger)
+    plot_training_curves(
+        history,
+        logger,
+        temp_type,
+        args.hidden_layers,
+        args.epochs,
+        args.learning_rate,
+        args.batch_size,
+    )
 
     # Evaluate neural network
     nn_metrics, predictions = evaluate_model(
@@ -696,7 +770,16 @@ def main():
     )
 
     # Plot predictions
-    plot_predictions(y_test, predictions, logger)
+    plot_predictions(
+        y_test,
+        predictions,
+        logger,
+        temp_type,
+        args.hidden_layers,
+        args.epochs,
+        args.learning_rate,
+        args.batch_size,
+    )
 
     # Compare all models
     logger.info("=" * 60)
