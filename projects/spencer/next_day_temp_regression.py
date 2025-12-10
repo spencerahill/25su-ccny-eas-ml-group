@@ -59,9 +59,26 @@ def load_data(
     """
     ds = xr.open_dataset(filepath)
 
-    field_name = "temp_anom" if use_anomalies else "temp_avg"
-    temperature = ds[field_name].values
+    # Load both fields to use temp_avg for filtering
+    temp_avg = ds["temp_avg"].values
+    temp_anom = ds["temp_anom"].values
     time_coord = ds["time"].values
+
+    # Filter out errant 0F values (missing data recorded as 0 instead of NaN)
+    n_zeros = (temp_avg == 0).sum()
+    if n_zeros > 0:
+        logging.warning(f"Found {n_zeros} errant 0°F values in temp_avg, removing them")
+
+    valid_mask = temp_avg != 0
+
+    # Apply mask to both temperature fields and time
+    temp_avg = temp_avg[valid_mask]
+    temp_anom = temp_anom[valid_mask]
+    time_coord = time_coord[valid_mask]
+
+    # Select the appropriate field
+    temperature = temp_anom if use_anomalies else temp_avg
+    field_name = "temp_anom" if use_anomalies else "temp_avg"
 
     # Check for NaN values
     n_nan = np.isnan(temperature).sum()
